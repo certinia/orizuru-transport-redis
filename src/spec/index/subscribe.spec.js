@@ -125,9 +125,6 @@ describe('index/subscribe.js', () => {
 				mocks.handler.throws(new Error('test error'));
 
 				// when
-				Subscriber.wrapper(mocks.handler)(message);
-
-				// when
 				return expect(Subscriber.wrapper(mocks.handler)(message)).to.be.rejectedWith('test error')
 					.then(() => {
 
@@ -154,7 +151,6 @@ describe('index/subscribe.js', () => {
 						expect(errorEvents).to.include('test error');
 
 					});
-
 
 			});
 

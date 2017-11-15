@@ -326,8 +326,8 @@ describe('index/shared/redis.js', () => {
 
 					// when
 
-					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](channelA, messageA);
-					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](channelB, messageB);
+					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](Buffer.from(channelA), messageA);
+					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](Buffer.from(channelB), messageB);
 
 					// then
 
@@ -357,7 +357,7 @@ describe('index/shared/redis.js', () => {
 
 					// when
 
-					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](channelB, messageB);
+					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](Buffer.from(channelB), messageB);
 
 					// then
 

@@ -56,7 +56,7 @@ const
 	multiplexingHandler = (config) => (channel, message) => {
 
 		const redisInstance = getOrCreateRedisInstance(config),
-			channelHandler = redisInstance.subscribersByChannel.get(channel);
+			channelHandler = redisInstance.subscribersByChannel.get(channel.toString());
 
 		if (_.isFunction(channelHandler)) {
 			channelHandler(message);
