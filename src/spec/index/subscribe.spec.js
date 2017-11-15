@@ -28,14 +28,13 @@
 
 const
 	root = require('app-root-path'),
+
+	proxyquire = require('proxyquire'),
+
 	chai = require('chai'),
 	sinonChai = require('sinon-chai'),
 	chaiAsPromised = require('chai-as-promised'),
 	sinon = require('sinon'),
-
-	Redis = require(root + '/src/lib/index/shared/redis'),
-
-	Subscriber = require(root + '/src/lib/index/subscribe'),
 
 	mocks = {},
 
@@ -48,15 +47,17 @@ chai.use(chaiAsPromised);
 
 describe('index/subscribe.js', () => {
 
+	let Subscriber;
+
 	beforeEach(() => {
-		mocks.Redis = {
-			apply: sandbox.stub(Redis, 'apply')
-		};
-		mocks.connection = {
-			on: sandbox.stub(),
-			subscribe: sandbox.stub()
+		mocks.redis = {
+			subscribe: sandbox.stub().resolves()
 		};
 		mocks.handler = sandbox.stub();
+
+		Subscriber = proxyquire(root + '/src/lib/index/subscribe', {
+			['./shared/redis']: mocks.redis
+		});
 	});
 
 	afterEach(() => {
@@ -65,98 +66,22 @@ describe('index/subscribe.js', () => {
 
 	describe('subscribe', () => {
 
-		it('should supply messages to the handler', () => {
+		it('should call the underlying subscribe', () => {
 
 			// given
 			const
 				topic = 'TestTopic',
-				message = 'TestMessage',
 				config = { path: 'test' };
 
-			mocks.connection.on.callsFake((type, callback) => {
-				return callback(topic, message);
-			});
+			mocks.redis.subscribe.resolves();
 			mocks.handler.resolves();
-			mocks.Redis.apply.callsFake(action => {
-				return Promise.resolve(action(mocks.connection));
-			});
 
 			// when
-			return Subscriber.handle({ eventName: topic, handler: mocks.handler, config })
+			return Subscriber.subscribe({ eventName: topic, handler: mocks.handler, config })
 				// then
 				.then(() => {
-					expect(mocks.Redis.apply).to.have.been.calledOnce;
-					expect(mocks.Redis.apply).to.have.been.calledWith(anyFunction, config);
-					expect(mocks.connection.on).to.have.been.calledOnce;
-					expect(mocks.connection.on).to.have.been.calledWith('messageBuffer', anyFunction);
-					expect(mocks.connection.subscribe).to.have.been.calledOnce;
-					expect(mocks.connection.subscribe).to.have.been.calledWith(topic);
-					expect(mocks.handler).to.have.been.calledOnce;
-					expect(mocks.handler).to.have.been.calledWith(message);
-				});
-		});
-
-		it('should swallow handler errors when a returned promise rejects', () => {
-
-			// given
-			const
-				topic = 'TestTopic',
-				message = {
-					content: 'TestMessage'
-				};
-
-			mocks.connection.on.callsFake((type, callback) => {
-				return callback(topic, message);
-			});
-			mocks.handler.rejects(new Error('test'));
-			mocks.Redis.apply.callsFake(action => {
-				return Promise.resolve(action(mocks.connection));
-			});
-
-			// when
-			return expect(Subscriber.handle({ eventName: topic, handler: mocks.handler })).to.be.fulfilled
-				// then
-				.then(() => {
-					expect(mocks.Redis.apply).to.have.been.calledOnce;
-					expect(mocks.Redis.apply).to.have.been.calledWith(anyFunction);
-					expect(mocks.connection.on).to.have.been.calledOnce;
-					expect(mocks.connection.on).to.have.been.calledWith('messageBuffer', anyFunction);
-					expect(mocks.connection.subscribe).to.have.been.calledOnce;
-					expect(mocks.connection.subscribe).to.have.been.calledWith(topic);
-					expect(mocks.handler).to.have.been.calledOnce;
-					expect(mocks.handler).to.have.been.calledWith(message);
-				});
-		});
-
-		it('should swallow handler errors when an error is thrown', () => {
-
-			// given
-			const
-				topic = 'TestTopic',
-				message = {
-					content: 'TestMessage'
-				};
-
-			mocks.connection.on.callsFake((type, callback) => {
-				return callback(topic, message);
-			});
-			mocks.handler.throws(new Error('test'));
-			mocks.Redis.apply.callsFake(action => {
-				return Promise.resolve(action(mocks.connection));
-			});
-
-			// when
-			return expect(Subscriber.handle({ eventName: topic, handler: mocks.handler })).to.be.fulfilled
-				// then
-				.then(() => {
-					expect(mocks.Redis.apply).to.have.been.calledOnce;
-					expect(mocks.Redis.apply).to.have.been.calledWith(anyFunction);
-					expect(mocks.connection.subscribe).to.have.been.calledOnce;
-					expect(mocks.connection.subscribe).to.have.been.calledWith(topic);
-					expect(mocks.connection.on).to.have.been.calledOnce;
-					expect(mocks.connection.on).to.have.been.calledWith('messageBuffer', anyFunction);
-					expect(mocks.handler).to.have.been.calledOnce;
-					expect(mocks.handler).to.have.been.calledWith(message);
+					expect(mocks.redis.subscribe).to.have.been.calledOnce;
+					expect(mocks.redis.subscribe).to.have.been.calledWith(topic, anyFunction, config);
 				});
 		});
 
@@ -184,14 +109,10 @@ describe('index/subscribe.js', () => {
 			it('if subscribe throws an error', () => {
 
 				// given
-				mocks.Redis.apply.callsFake(action => {
-					return Promise.reject(new Error('test error'));
-				});
+				mocks.redis.subscribe.rejects(new Error('Fail'));
 
 				// when - then
-				return expect(Subscriber.handle({})).to.be.rejected.then(() => {
-					expect(errorEvents).to.include('test error');
-				});
+				return expect(Subscriber.subscribe({})).to.be.rejectedWith('Fail');
 
 			});
 
@@ -199,24 +120,20 @@ describe('index/subscribe.js', () => {
 
 				// given
 				const
-					topic = 'TestTopic',
-					message = {
-						content: 'TestMessage'
-					};
+					message = 'Test';
 
-				mocks.connection.on.callsFake((type, callback) => {
-					return callback(topic, message);
-				});
 				mocks.handler.throws(new Error('test error'));
-				mocks.Redis.apply.callsFake(action => {
-					return Promise.resolve(action(mocks.connection));
-				});
 
 				// when
-				return expect(Subscriber.handle({ eventName: topic, handler: mocks.handler })).to.be.fulfilled
-					// then
+				Subscriber.wrapper(mocks.handler)(message);
+
+				// when
+				return expect(Subscriber.wrapper(mocks.handler)(message)).to.be.rejectedWith('test error')
 					.then(() => {
+
+						// then
 						expect(errorEvents).to.include('test error');
+
 					});
 
 			});
@@ -225,25 +142,19 @@ describe('index/subscribe.js', () => {
 
 				// given
 				const
-					topic = 'TestTopic',
-					message = {
-						content: 'TestMessage'
-					};
+					message = 'Test';
 
-				mocks.connection.on.callsFake((type, callback) => {
-					return callback(topic, message);
-				});
 				mocks.handler.rejects(new Error('test error'));
-				mocks.Redis.apply.callsFake(action => {
-					return Promise.resolve(action(mocks.connection));
-				});
 
 				// when
-				return expect(Subscriber.handle({ eventName: topic, handler: mocks.handler })).to.be.fulfilled
-					// then
+				return expect(Subscriber.wrapper(mocks.handler)(message)).to.be.rejectedWith('test error')
 					.then(() => {
+
+						// then
 						expect(errorEvents).to.include('test error');
+
 					});
+
 
 			});
 

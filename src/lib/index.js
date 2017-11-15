@@ -39,8 +39,8 @@ const
 	publish = require('./index/publish'),
 	subscribe = require('./index/subscribe'),
 
-	publishFunc = config => publish.send(config),
-	subscribeFunc = config => subscribe.handle(config);
+	publishFunc = config => publish.publish(config),
+	subscribeFunc = config => subscribe.subscribe(config);
 
 publishFunc.emitter = publish.emitter;
 subscribeFunc.emitter = subscribe.emitter;

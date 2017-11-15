@@ -28,17 +28,15 @@
 
 const
 	root = require('app-root-path'),
+
+	proxyquire = require('proxyquire'),
+
 	chai = require('chai'),
 	sinonChai = require('sinon-chai'),
 	sinon = require('sinon'),
 	chaiAsPromised = require('chai-as-promised'),
 
-	Redis = require(root + '/src/lib/index/shared/redis'),
-
-	Publisher = require(root + '/src/lib/index/publish'),
-
 	mocks = {},
-	anyFunction = sinon.match.func,
 
 	sandbox = sinon.sandbox.create(),
 	expect = chai.expect;
@@ -48,13 +46,16 @@ chai.use(sinonChai);
 
 describe('index/publish.js', () => {
 
+	let Publisher;
+
 	beforeEach(() => {
-		mocks.Redis = {
-			apply: sandbox.stub(Redis, 'apply')
+		mocks.redis = {
+			publish: sandbox.stub().resolves()
 		};
-		mocks.connection = {
-			publish: sandbox.stub()
-		};
+
+		Publisher = proxyquire(root + '/src/lib/index/publish', {
+			['./shared/redis']: mocks.redis
+		});
 	});
 
 	afterEach(() => {
@@ -71,23 +72,17 @@ describe('index/publish.js', () => {
 				buffer = 'TestBuffer',
 				config = 'test';
 
-			mocks.Redis.apply.callsFake(action => {
-				return Promise.resolve(action(mocks.connection));
-			});
-
 			// when
 			return Publisher
-				.send({
+				.publish({
 					eventName,
 					buffer,
 					config
 				})
 				// then
 				.then(() => {
-					expect(mocks.Redis.apply).to.have.been.calledOnce;
-					expect(mocks.Redis.apply).to.have.been.calledWith(anyFunction, config);
-					expect(mocks.connection.publish).to.be.calledOnce;
-					expect(mocks.connection.publish).to.be.calledWith(eventName, buffer);
+					expect(mocks.redis.publish).to.have.been.calledOnce;
+					expect(mocks.redis.publish).to.have.been.calledWith(eventName, buffer, config);
 				});
 		});
 
@@ -115,12 +110,10 @@ describe('index/publish.js', () => {
 			it('if publish throws an error', () => {
 
 				// given
-				mocks.Redis.apply.callsFake(action => {
-					return Promise.reject(new Error('test error'));
-				});
+				mocks.redis.publish.rejects(new Error('test error'));
 
 				// when - then
-				return expect(Publisher.send({})).to.be.rejected.then(() => {
+				return expect(Publisher.publish({})).to.be.rejected.then(() => {
 					expect(errorEvents).to.include('test error');
 				});
 

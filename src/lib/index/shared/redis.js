@@ -27,54 +27,120 @@
 'use strict';
 
 const
+	_ = require('lodash'),
 	redis = require('redis'),
 
-	{ validate } = require('./configValidator'),
+	validateConfiguration = require('./configValidator').validate,
 
-	connectionCache = new Map();
+	redisInstances = new Map(),
 
-class Redis {
+	validateHandler = (handler) => () => {
+		if (!_.isFunction(handler)) {
+			throw new Error('Handler is not a Function.');
+		}
+	},
 
-	static apply(action, config) {
-		validate(config);
+	getOrCreateRedisInstance = (config) => {
+		let redisInstance = redisInstances.get(config.url);
 
-		let connections = connectionCache.get(config.url),
-			connection;
+		if (!redisInstance) {
+			redisInstance = {
+				subscribersByChannel: new Map()
+			};
+			redisInstances.set(config.url, redisInstance);
+		}
 
-		return Promise.resolve()
-			.then(() => {
-				if (!connections) {
-					connections = [];
-					connectionCache.set(config.url, connections);
-				}
+		return redisInstance;
+	},
 
-				connection = connections.pop();
+	multiplexingHandler = (config) => (channel, message) => {
 
-				if (connection) {
-					return connection;
-				}
+		const redisInstance = getOrCreateRedisInstance(config),
+			channelHandler = redisInstance.subscribersByChannel.get(channel);
 
-				// Create a new redis connection
-				connection = redis.createClient(config);
+		if (_.isFunction(channelHandler)) {
+			channelHandler(message);
+		}
 
-				return connection;
-			})
-			.then(conn => {
-				// Invoke the action callback on the
-				// new connection
-				return action(conn);
-			})
-			.then(() => {
-				connections.push(connection);
-			})
-			.catch((err) => {
-				if (connection) {
-					connection.quit();
-				}
-				throw err;
-			});
+	},
+
+	getPublishingConnection = (config) => () => {
+
+		const redisInstance = getOrCreateRedisInstance(config);
+
+		if (!redisInstance.publishingConnection) {
+			redisInstance.publishingConnection = redis.createClient(config);
+		}
+
+		return redisInstance.publishingConnection;
+	},
+
+	getSubscribingConnection = (config) => () => {
+
+		const redisInstance = getOrCreateRedisInstance(config);
+
+		if (!redisInstance.subscribingConnection) {
+			redisInstance.subscribingConnection = redis.createClient(config);
+			redisInstance.subscribingConnection.on('messageBuffer', multiplexingHandler(config));
+		}
+
+		return redisInstance.subscribingConnection;
+	},
+
+	publishMessage = (channel, buffer) => (connection) => {
+		connection.publish(channel, buffer);
+		return true;
+	},
+
+	subscribeHandler = (channel, handler, config) => (connection) => {
+
+		const redisInstance = getOrCreateRedisInstance(config);
+
+		connection.subscribe(channel);
+		redisInstance.subscribersByChannel.set(channel, handler);
+
+		return true;
+	},
+
+	closePublishingConnectionAndThrowError = (config) => (error) => {
+		const redisInstance = getOrCreateRedisInstance(config);
+
+		if (redisInstance.publishingConnection) {
+			redisInstance.publishingConnection.quit();
+			redisInstance.publishingConnection = null;
+		}
+
+		throw error;
+	},
+
+	closeSubscribingConnectionAndThrowError = (config) => (error) => {
+		const redisInstance = getOrCreateRedisInstance(config);
+
+		if (redisInstance.subscribingConnection) {
+			redisInstance.subscribingConnection.quit();
+			redisInstance.subscribingConnection = null;
+		}
+
+		throw error;
+	};
+
+module.exports = {
+
+	publish: (channel, buffer, config) => {
+		return Promise.resolve(config)
+			.then(validateConfiguration)
+			.then(getPublishingConnection(config))
+			.then(publishMessage(channel, buffer))
+			.catch(closePublishingConnectionAndThrowError(config));
+	},
+
+	subscribe: (channel, handler, config) => {
+		return Promise.resolve(config)
+			.then(validateConfiguration)
+			.then(validateHandler(handler))
+			.then(getSubscribingConnection(config))
+			.then(subscribeHandler(channel, handler, config))
+			.catch(closeSubscribingConnectionAndThrowError(config));
 	}
 
-}
-
-module.exports = Redis;
+};

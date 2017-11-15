@@ -27,7 +27,7 @@
 'use strict';
 
 const
-	Redis = require('./shared/redis'),
+	redis = require('./shared/redis'),
 
 	EventEmitter = require('events'),
 
@@ -35,8 +35,8 @@ const
 
 	emitter = new EventEmitter(),
 
-	send = ({ eventName, buffer, config }) => {
-		return Redis.apply(connection => connection.publish(eventName, buffer), config)
+	publish = ({ eventName, buffer, config }) => {
+		return redis.publish(eventName, buffer, config)
 			.catch(err => {
 				emitter.emit(ERROR_EVENT, err.message);
 				throw err;
@@ -46,6 +46,6 @@ const
 emitter.ERROR = ERROR_EVENT;
 
 module.exports = {
-	send,
+	publish,
 	emitter
 };

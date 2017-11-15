@@ -44,8 +44,8 @@ describe('index.js', () => {
 
 		// given
 		const
-			mockPublish = { send: sandbox.spy() },
-			mockSubscribe = { handle: sandbox.spy() },
+			mockPublish = { publish: sandbox.spy() },
+			mockSubscribe = { subscribe: sandbox.spy() },
 			index = proxyquire(root + '/src/lib/index', {
 				['./index/publish']: mockPublish,
 				['./index/subscribe']: mockSubscribe
@@ -56,10 +56,10 @@ describe('index.js', () => {
 		index.subscribe('test2');
 
 		// then
-		calledOnce(mockPublish.send);
-		calledWith(mockPublish.send, 'test1');
-		calledOnce(mockSubscribe.handle);
-		calledWith(mockSubscribe.handle, 'test2');
+		calledOnce(mockPublish.publish);
+		calledWith(mockPublish.publish, 'test1');
+		calledOnce(mockSubscribe.subscribe);
+		calledWith(mockSubscribe.subscribe, 'test2');
 
 	});
 

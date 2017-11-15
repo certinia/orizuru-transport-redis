@@ -27,7 +27,7 @@
 'use strict';
 
 const
-	Redis = require('./shared/redis'),
+	redis = require('./shared/redis'),
 
 	EventEmitter = require('events'),
 
@@ -35,30 +35,24 @@ const
 
 	emitter = new EventEmitter(),
 
-	subscribeAction = ({ topic, handler, connection }) => {
+	wrapper = (handler) => (message) => {
+		// Invoke the handler with the message
+		try {
+			const handlerResult = handler(message);
+			return Promise.resolve(handlerResult).catch(err => {
+				emitter.emit(ERROR_EVENT, err.message);
+				return Promise.reject(err);
+			});
+		} catch (err) {
+			emitter.emit(ERROR_EVENT, err.message);
+			return Promise.reject(err);
+		}
 
-		// Subscribe to the topic
-		connection.on('messageBuffer', (topic, message) => {
-			return Promise.resolve()
-				.then(() => {
-					// Invoke the handler with the message
-					try {
-						const handlerResult = handler(message);
-						Promise.resolve(handlerResult).catch(err => {
-							emitter.emit(ERROR_EVENT, err.message);
-						});
-					} catch (err) {
-						emitter.emit(ERROR_EVENT, err.message);
-					}
-				});
-		});
-
-		return connection.subscribe(topic);
 	},
 
-	handle = ({ eventName, handler, config }) => {
+	subscribe = ({ eventName, handler, config }) => {
 		// Opens a connection to the Redis server, and subscribes to the topic
-		return Redis.apply(connection => subscribeAction({ topic: eventName, handler, connection }), config)
+		return redis.subscribe(eventName, wrapper(handler), config)
 			.catch(err => {
 				emitter.emit(ERROR_EVENT, err.message);
 				throw err;
@@ -68,6 +62,7 @@ const
 emitter.ERROR = ERROR_EVENT;
 
 module.exports = {
-	handle,
+	wrapper,
+	subscribe,
 	emitter
 };
