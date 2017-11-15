@@ -51,12 +51,11 @@ describe('index/shared/redis.js', () => {
 	beforeEach(() => {
 		sandbox.stub(configValidator, 'validate').returns(undefined);
 		mocks.action = sandbox.stub();
-		mocks.channel = sandbox.stub();
 		mocks.connection = {
-			createChannel: sandbox.stub().resolves(mocks.channel)
+			quit: sandbox.stub()
 		};
 		mocks.redis = {
-			createClient: sandbox.stub(redis, 'createClient').resolves(mocks.connection)
+			createClient: sandbox.stub(redis, 'createClient').returns(mocks.connection)
 		};
 		mocks.config = {
 			url: 'test'
@@ -74,7 +73,7 @@ describe('index/shared/redis.js', () => {
 
 		describe('should handle error', () => {
 
-			it('from redis.createClientAsync', () => {
+			it('from redis.createClient', () => {
 				// given
 				mocks.redis.createClient.throws(new Error('bad'));
 
@@ -103,6 +102,7 @@ describe('index/shared/redis.js', () => {
 						expect(mocks.redis.createClient).to.have.been.calledWith(mocks.config);
 						expect(mocks.action).to.have.been.calledOnce;
 						expect(mocks.action).to.have.been.calledWith(mocks.connection);
+						expect(mocks.connection.quit).to.have.been.calledOnce;
 					});
 			});
 
@@ -123,7 +123,7 @@ describe('index/shared/redis.js', () => {
 
 		it('should lazy load the connection', () => {
 			// given/when
-			return expect(RedisService.apply(mocks.action, mocks.config).then(() => RedisService.apply(mocks.action)))
+			return expect(RedisService.apply(mocks.action, mocks.config).then(() => RedisService.apply(mocks.action, mocks.config)))
 				.to.eventually.be.fulfilled
 				// then
 				.then(() => {

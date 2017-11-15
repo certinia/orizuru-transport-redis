@@ -29,21 +29,27 @@
 const
 	redis = require('redis'),
 
-	{
-		validate
-	} = require('./configValidator');
+	{ validate } = require('./configValidator'),
 
-let connection;
+	connectionCache = new Map();
 
 class Redis {
 
 	static apply(action, config) {
 		validate(config);
 
+		let connections = connectionCache.get(config.url),
+			connection;
+
 		return Promise.resolve()
 			.then(() => {
-				// Use the connection if created earlier
-				// (lazy loading)
+				if (!connections) {
+					connections = [];
+					connectionCache.set(config.url, connections);
+				}
+
+				connection = connections.pop();
+
 				if (connection) {
 					return connection;
 				}
@@ -53,10 +59,19 @@ class Redis {
 
 				return connection;
 			})
-			.then(connection => {
+			.then(conn => {
 				// Invoke the action callback on the
 				// new connection
-				return action(connection);
+				return action(conn);
+			})
+			.then(() => {
+				connections.push(connection);
+			})
+			.catch((err) => {
+				if (connection) {
+					connection.quit();
+				}
+				throw err;
 			});
 	}
 

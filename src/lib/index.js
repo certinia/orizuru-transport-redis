@@ -53,7 +53,7 @@ module.exports = {
 	 * @example
 	 * let buffer = ...,
 	 * 	config = {
-	 * 		cloudamqpUrl: 'amqp://localhost'
+	 * 		url: 'redis://localhost:6379'
 	 * 	}
 	 * index.publish({ eventName: 'test', buffer, config });
 	 * 
@@ -77,7 +77,7 @@ module.exports = {
 	 * 		console.log(buffer);
 	 * 	},
 	 * 	config = {
-	 * 		cloudamqpUrl: 'amqp://localhost'
+	 * 		url: 'redis://localhost:6379'
 	 * 	}
 	 * index.subscribe({ eventName: 'test', handler, config });
 	 * 
