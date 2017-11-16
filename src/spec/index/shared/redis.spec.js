@@ -206,8 +206,13 @@ describe('index/shared/redis.js', () => {
 					url: 'redis://bigserver.com:1234'
 				};
 
+			// when
+
 			return redis.subscribe(channelA, {}, config).should.be.rejectedWith('Handler is not a Function.')
 				.then(() => {
+
+					// then
+
 					notCalled(mocks.redis.createClient);
 					notCalled(mocks.connection.on);
 					notCalled(mocks.connection.subscribe);
