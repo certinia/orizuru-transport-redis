@@ -1,5 +1,8 @@
 # Orizuru Transport Redis.
 
+[![Build Status](https://travis-ci.org/financialforcedev/orizuru-transport-redis.svg?branch=master)](https://travis-ci.org/financialforcedev/orizuru-transport-redis)
+[![NSP Status](https://nodesecurity.io/orgs/ffres/projects/a598bbf3-fdde-4ee0-9b4a-17d6e579512a/badge)](https://nodesecurity.io/orgs/ffres/projects/a598bbf3-fdde-4ee0-9b4a-17d6e579512a)
+
 Orizuru Transport Redis is a transport library for the [Orizuru](https://www.npmjs.com/package/@financialforcedev/orizuru) framework.
 
 ## Install
