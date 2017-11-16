@@ -1,4 +1,4 @@
-# Orizuru Transport RabbitMQ.
+# Orizuru Transport Redis.
 
 Orizuru Transport Redis is a transport library for the [Orizuru](https://www.npmjs.com/package/@financialforcedev/orizuru) framework.
 
