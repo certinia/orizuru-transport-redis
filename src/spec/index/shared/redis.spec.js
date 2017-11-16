@@ -137,7 +137,7 @@ describe('index/shared/redis.js', () => {
 
 		});
 
-		it('should reject and cleanup if publish fails', () => {
+		it('should reject if publish fails', () => {
 
 			// given
 
@@ -160,7 +160,6 @@ describe('index/shared/redis.js', () => {
 					calledWith(mocks.redis.createClient, config);
 					calledOnce(mocks.connection.publish);
 					calledWith(mocks.connection.publish, channel, buffer);
-					calledOnce(mocks.connection.quit);
 				});
 
 		});
@@ -275,7 +274,7 @@ describe('index/shared/redis.js', () => {
 
 		});
 
-		it('should clean up on failure of on call', () => {
+		it('should reject on failure of on call', () => {
 
 			// given
 
@@ -300,7 +299,6 @@ describe('index/shared/redis.js', () => {
 					calledOnce(mocks.connection.on);
 					calledWith(mocks.connection.on, 'messageBuffer', anyFunction);
 					notCalled(mocks.connection.subscribe);
-					calledOnce(mocks.connection.quit);
 				});
 
 		});

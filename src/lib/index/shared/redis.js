@@ -100,28 +100,6 @@ const
 		redisInstance.subscribersByChannel.set(channel, handler);
 
 		return true;
-	},
-
-	closePublishingConnectionAndThrowError = (config) => (error) => {
-		const redisInstance = getOrCreateRedisInstance(config);
-
-		if (redisInstance.publishingConnection) {
-			redisInstance.publishingConnection.quit();
-			redisInstance.publishingConnection = null;
-		}
-
-		throw error;
-	},
-
-	closeSubscribingConnectionAndThrowError = (config) => (error) => {
-		const redisInstance = getOrCreateRedisInstance(config);
-
-		if (redisInstance.subscribingConnection) {
-			redisInstance.subscribingConnection.quit();
-			redisInstance.subscribingConnection = null;
-		}
-
-		throw error;
 	};
 
 module.exports = {
@@ -130,8 +108,7 @@ module.exports = {
 		return Promise.resolve(config)
 			.then(validateConfiguration)
 			.then(getPublishingConnection(config))
-			.then(publishMessage(channel, buffer))
-			.catch(closePublishingConnectionAndThrowError(config));
+			.then(publishMessage(channel, buffer));
 	},
 
 	subscribe: (channel, handler, config) => {
@@ -139,8 +116,7 @@ module.exports = {
 			.then(validateConfiguration)
 			.then(validateHandler(handler))
 			.then(getSubscribingConnection(config))
-			.then(subscribeHandler(channel, handler, config))
-			.catch(closeSubscribingConnectionAndThrowError(config));
+			.then(subscribeHandler(channel, handler, config));
 	}
 
 };
