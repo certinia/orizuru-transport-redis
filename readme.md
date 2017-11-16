@@ -21,7 +21,7 @@ Use this dependency to specify the transport layer that ```@financialforcedev/or
 
 		// configure the transport
 		transportConfig = {
-			redisUrl: 'redis://localhost'
+			url: 'redis://localhost:6379'
 		};
 
 	new Server({ transport, transportConfig }))...
