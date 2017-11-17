@@ -119,8 +119,7 @@ describe('index/subscribe.js', () => {
 			it('if handler function throws an error', () => {
 
 				// given
-				const
-					message = 'Test';
+				const message = 'Test';
 
 				mocks.handler.throws(new Error('test error'));
 
@@ -138,8 +137,7 @@ describe('index/subscribe.js', () => {
 			it('if handler function rejects', () => {
 
 				// given
-				const
-					message = 'Test';
+				const message = 'Test';
 
 				mocks.handler.rejects(new Error('test error'));
 
