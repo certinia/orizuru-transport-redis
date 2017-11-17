@@ -36,17 +36,13 @@ const
 	emitter = new EventEmitter(),
 
 	wrapper = (handler) => (message) => {
-		// Invoke the handler with the message
-		try {
-			const handlerResult = handler(message);
-			return Promise.resolve(handlerResult).catch(err => {
+
+		return Promise.resolve(message)
+			.then(handler)
+			.catch(err => {
 				emitter.emit(ERROR_EVENT, err.message);
 				return Promise.reject(err);
 			});
-		} catch (err) {
-			emitter.emit(ERROR_EVENT, err.message);
-			return Promise.reject(err);
-		}
 
 	},
 
