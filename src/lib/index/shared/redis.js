@@ -27,6 +27,9 @@
 'use strict';
 
 const
+
+	LIST_ITEM_OFFSET = 1,
+
 	_ = require('lodash'),
 	redis = require('redis'),
 
@@ -84,6 +87,9 @@ const
 	},
 
 	publishMessage = (channel, buffer) => (connection) => {
+		/*
+		 * List push.
+		 */
 		connection.lpush(channel, buffer);
 		return true;
 	},
@@ -92,11 +98,19 @@ const
 
 		const processMessage = () => {
 
+			/*
+			 * Blocking list pop.
+			 */
 			connection.blpop(channel, 0, (err, data) => {
 				if (err) {
 					throw err;
 				}
-				handler(data[1]);
+				/* 
+				 * Data is an array with the first element being the
+				 * key and the second being the item popped from the
+				 * list.
+				 */
+				handler(data[LIST_ITEM_OFFSET]);
 				processMessage();
 			});
 
