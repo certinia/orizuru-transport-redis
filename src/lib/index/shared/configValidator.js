@@ -35,9 +35,6 @@ const
 		if (config.url == null || !_.isString(config.url)) {
 			throw new Error('Invalid parameter: url not a string.');
 		}
-		if (!config.return_buffers) {
-			throw new Error('Return Buffers must be set to true.');
-		}
 	};
 
 module.exports = {

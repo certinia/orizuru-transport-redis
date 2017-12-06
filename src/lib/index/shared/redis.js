@@ -66,7 +66,7 @@ const
 		const redisInstance = getOrCreateRedisInstance(config);
 
 		if (!redisInstance.publishingConnection) {
-			redisInstance.publishingConnection = redis.createClient(config);
+			redisInstance.publishingConnection = redis.createClient(overrideConfiguration(config));
 		}
 
 		return redisInstance.publishingConnection;
@@ -77,7 +77,7 @@ const
 		const redisInstance = getOrCreateRedisInstance(config);
 
 		if (!redisInstance.subscribingConnection) {
-			redisInstance.subscribingConnection = redis.createClient(config);
+			redisInstance.subscribingConnection = redis.createClient(overrideConfiguration(config));
 		}
 
 		return redisInstance.subscribingConnection;
@@ -119,7 +119,6 @@ module.exports = {
 
 	publish: (channel, buffer, config) => {
 		return Promise.resolve(config)
-			.then(overrideConfiguration)
 			.then(validateConfiguration)
 			.then(getPublishingConnection(config))
 			.then(publishMessage(channel, buffer));
@@ -127,7 +126,6 @@ module.exports = {
 
 	subscribe: (channel, handler, config) => {
 		return Promise.resolve(config)
-			.then(overrideConfiguration)
 			.then(validateConfiguration)
 			.then(validateHandler(handler))
 			.then(getSubscribingConnection(config))

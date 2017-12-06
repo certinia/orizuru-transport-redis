@@ -50,7 +50,7 @@ chai.use(chaiAsPromised);
 
 describe('index/shared/redis.js', () => {
 
-	let redis;
+	let redis, config, overriddenConfig;
 
 	beforeEach(() => {
 		sandbox.stub(configValidator, 'validate').returns(undefined);
@@ -68,6 +68,13 @@ describe('index/shared/redis.js', () => {
 		redis = proxyquire(root + '/src/lib/index/shared/redis', {
 			['redis']: mocks.redis
 		});
+		config = {
+			url: 'redis://bigserver.com:1234'
+		};
+		overriddenConfig = {
+			url: 'redis://bigserver.com:1234',
+			['return_buffers']: true
+		};
 	});
 
 	afterEach(() => {
@@ -84,10 +91,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				buffer = {},
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				buffer = {};
 
 			// when
 
@@ -97,7 +101,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					calledOnce(mocks.connection.lpush);
 					calledWith(mocks.connection.lpush, channel, buffer);
 					notCalled(mocks.connection.quit);
@@ -111,10 +115,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				buffer = {},
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				buffer = {};
 
 			mocks.redis.createClient.throws(new Error('Bad'));
 
@@ -125,7 +126,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					notCalled(mocks.connection.lpush);
 					notCalled(mocks.connection.quit);
 				});
@@ -138,10 +139,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				buffer = {},
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				buffer = {};
 
 			mocks.connection.lpush.throws(new Error('Fail'));
 
@@ -152,7 +150,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					calledOnce(mocks.connection.lpush);
 					calledWith(mocks.connection.lpush, channel, buffer);
 				});
@@ -165,10 +163,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				buffer = {},
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				buffer = {};
 
 			// when
 
@@ -178,7 +173,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					calledTwice(mocks.connection.lpush);
 					calledWith(mocks.connection.lpush, channel, buffer);
 					calledWith(mocks.connection.lpush, channel, buffer);
@@ -196,10 +191,7 @@ describe('index/shared/redis.js', () => {
 			// given
 
 			const
-				channelA = 'a',
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				channelA = 'a';
 
 			// when
 
@@ -221,10 +213,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				handler = sandbox.stub(),
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				handler = sandbox.stub();
 
 			// when
 
@@ -234,7 +223,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					calledOnce(mocks.connection.blpop);
 					calledWith(mocks.connection.blpop, channel);
 					notCalled(mocks.connection.quit);
@@ -248,10 +237,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				handler = sandbox.stub(),
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				handler = sandbox.stub();
 
 			mocks.redis.createClient.throws(new Error('Fail'));
 
@@ -263,7 +249,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					notCalled(mocks.connection.blpop);
 					notCalled(mocks.connection.quit);
 				});
@@ -276,10 +262,7 @@ describe('index/shared/redis.js', () => {
 
 			const
 				channel = 'really_useful',
-				handler = sandbox.stub(),
-				config = {
-					url: 'redis://bigserver.com:1234'
-				};
+				handler = sandbox.stub();
 
 			mocks.connection.blpop.yields(new Error('Fail'), null);
 
@@ -291,7 +274,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					calledOnce(mocks.redis.createClient);
-					calledWith(mocks.redis.createClient, config);
+					calledWith(mocks.redis.createClient, overriddenConfig);
 					calledOnce(mocks.connection.blpop);
 					calledWith(mocks.connection.blpop, channel);
 				});
@@ -307,9 +290,6 @@ describe('index/shared/redis.js', () => {
 				channelB = 'b',
 				handlerA = sandbox.stub(),
 				handlerB = sandbox.stub(),
-				config = {
-					url: 'redis://bigserver.com:1234'
-				},
 				messageA = Buffer.from('A'),
 				messageB = Buffer.from('B');
 

@@ -57,17 +57,10 @@ describe('index/shared/configValidator.js', () => {
 
 		});
 
-		it('should throw error if return buffers is set wrong', () => {
-
-			// given - when - then
-			expect(() => validate({ url: 'test' })).to.throw('Return Buffers must be set to true.');
-
-		});
-
 		it('should return undefined if all ok', () => {
 
 			// given - when - then
-			expect(validate({ url: 'test', ['return_buffers']: true })).to.eql(undefined);
+			expect(validate({ url: 'test' })).to.eql(undefined);
 
 		});
 
