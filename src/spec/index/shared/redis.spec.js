@@ -28,9 +28,6 @@
 
 const
 
-	FIRST_CALL = 0,
-	ON_HANDLER_PARAM = 1,
-
 	root = require('app-root-path'),
 
 	proxyquire = require('proxyquire'),
@@ -40,7 +37,6 @@ const
 	sinonChai = require('sinon-chai'),
 	sinon = require('sinon'),
 	{ calledOnce, calledTwice, notCalled, calledWith } = sinon.assert,
-	anyFunction = sinon.match.func,
 
 	configValidator = require(root + '/src/lib/index/shared/configValidator'),
 
@@ -59,9 +55,8 @@ describe('index/shared/redis.js', () => {
 	beforeEach(() => {
 		sandbox.stub(configValidator, 'validate').returns(undefined);
 		mocks.connection = {
-			publish: sandbox.stub(),
-			subscribe: sandbox.stub(),
-			on: sandbox.stub(),
+			lpush: sandbox.stub(),
+			blpop: sandbox.stub(),
 			quit: sandbox.stub()
 		};
 		mocks.redis = {
@@ -103,8 +98,8 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					calledOnce(mocks.connection.publish);
-					calledWith(mocks.connection.publish, channel, buffer);
+					calledOnce(mocks.connection.lpush);
+					calledWith(mocks.connection.lpush, channel, buffer);
 					notCalled(mocks.connection.quit);
 				});
 
@@ -131,13 +126,13 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					notCalled(mocks.connection.publish);
+					notCalled(mocks.connection.lpush);
 					notCalled(mocks.connection.quit);
 				});
 
 		});
 
-		it('should reject if publish fails', () => {
+		it('should reject if lpush fails', () => {
 
 			// given
 
@@ -148,7 +143,7 @@ describe('index/shared/redis.js', () => {
 					url: 'redis://bigserver.com:1234'
 				};
 
-			mocks.connection.publish.throws(new Error('Fail'));
+			mocks.connection.lpush.throws(new Error('Fail'));
 
 			// when
 
@@ -158,8 +153,8 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					calledOnce(mocks.connection.publish);
-					calledWith(mocks.connection.publish, channel, buffer);
+					calledOnce(mocks.connection.lpush);
+					calledWith(mocks.connection.lpush, channel, buffer);
 				});
 
 		});
@@ -184,9 +179,9 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					calledTwice(mocks.connection.publish);
-					calledWith(mocks.connection.publish, channel, buffer);
-					calledWith(mocks.connection.publish, channel, buffer);
+					calledTwice(mocks.connection.lpush);
+					calledWith(mocks.connection.lpush, channel, buffer);
+					calledWith(mocks.connection.lpush, channel, buffer);
 					notCalled(mocks.connection.quit);
 				});
 
@@ -214,8 +209,7 @@ describe('index/shared/redis.js', () => {
 					// then
 
 					notCalled(mocks.redis.createClient);
-					notCalled(mocks.connection.on);
-					notCalled(mocks.connection.subscribe);
+					notCalled(mocks.connection.blpop);
 					notCalled(mocks.connection.quit);
 				});
 
@@ -241,10 +235,8 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					calledOnce(mocks.connection.on);
-					calledWith(mocks.connection.on, 'messageBuffer', anyFunction);
-					calledOnce(mocks.connection.subscribe);
-					calledWith(mocks.connection.subscribe);
+					calledOnce(mocks.connection.blpop);
+					calledWith(mocks.connection.blpop, channel);
 					notCalled(mocks.connection.quit);
 				});
 
@@ -272,14 +264,13 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					notCalled(mocks.connection.on);
-					notCalled(mocks.connection.subscribe);
+					notCalled(mocks.connection.blpop);
 					notCalled(mocks.connection.quit);
 				});
 
 		});
 
-		it('should reject on failure of on call', () => {
+		it('should reject on failure of blpop call', () => {
 
 			// given
 
@@ -290,7 +281,7 @@ describe('index/shared/redis.js', () => {
 					url: 'redis://bigserver.com:1234'
 				};
 
-			mocks.connection.on.throws(new Error('Fail'));
+			mocks.connection.blpop.yields(new Error('Fail'), null);
 
 			// when
 
@@ -301,9 +292,8 @@ describe('index/shared/redis.js', () => {
 
 					calledOnce(mocks.redis.createClient);
 					calledWith(mocks.redis.createClient, config);
-					calledOnce(mocks.connection.on);
-					calledWith(mocks.connection.on, 'messageBuffer', anyFunction);
-					notCalled(mocks.connection.subscribe);
+					calledOnce(mocks.connection.blpop);
+					calledWith(mocks.connection.blpop, channel);
 				});
 
 		});
@@ -323,48 +313,21 @@ describe('index/shared/redis.js', () => {
 				messageA = Buffer.from('A'),
 				messageB = Buffer.from('B');
 
+			mocks.connection.blpop
+				.onFirstCall().yields(null, [channelA, messageA])
+				.onThirdCall().yields(null, [channelB, messageB]);
+
 			return redis.subscribe(channelA, handlerA, config).should.be.fulfilled
 				.then(() => redis.subscribe(channelB, handlerB, config).should.be.fulfilled)
 				.then(() => {
 
 					// when
-
-					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](Buffer.from(channelA), messageA);
-					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](Buffer.from(channelB), messageB);
-
 					// then
 
 					calledOnce(handlerA);
 					calledWith(handlerA, messageA);
 					calledOnce(handlerB);
 					calledWith(handlerB, messageB);
-				});
-
-		});
-
-		it('should ignore messages to unsubscribed channels', () => {
-
-			// given
-
-			const
-				channelA = 'a',
-				channelB = 'b',
-				handlerA = sandbox.stub(),
-				config = {
-					url: 'redis://bigserver.com:1234'
-				},
-				messageB = Buffer.from('B');
-
-			return redis.subscribe(channelA, handlerA, config).should.be.fulfilled
-				.then(() => {
-
-					// when
-
-					mocks.connection.on.args[FIRST_CALL][ON_HANDLER_PARAM](Buffer.from(channelB), messageB);
-
-					// then
-
-					notCalled(handlerA);
 				});
 
 		});

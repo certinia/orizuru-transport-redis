@@ -34,6 +34,16 @@ const
 
 	redisInstances = new Map(),
 
+	overrideConfiguration = (config) => {
+		const newConfig = {};
+
+		Object.assign(newConfig, {
+			['return_buffers']: true
+		}, config);
+
+		return newConfig;
+	},
+
 	validateHandler = (handler) => () => {
 		if (!_.isFunction(handler)) {
 			throw new Error('Handler is not a Function.');
@@ -44,24 +54,11 @@ const
 		let redisInstance = redisInstances.get(config.url);
 
 		if (!redisInstance) {
-			redisInstance = {
-				subscribersByChannel: new Map()
-			};
+			redisInstance = {};
 			redisInstances.set(config.url, redisInstance);
 		}
 
 		return redisInstance;
-	},
-
-	multiplexingHandler = (config) => (channel, message) => {
-
-		const redisInstance = getOrCreateRedisInstance(config),
-			channelHandler = redisInstance.subscribersByChannel.get(channel.toString());
-
-		if (_.isFunction(channelHandler)) {
-			channelHandler(message);
-		}
-
 	},
 
 	getPublishingConnection = (config) => () => {
@@ -81,31 +78,48 @@ const
 
 		if (!redisInstance.subscribingConnection) {
 			redisInstance.subscribingConnection = redis.createClient(config);
-			redisInstance.subscribingConnection.on('messageBuffer', multiplexingHandler(config));
 		}
 
 		return redisInstance.subscribingConnection;
 	},
 
 	publishMessage = (channel, buffer) => (connection) => {
-		connection.publish(channel, buffer);
+		connection.lpush(channel, buffer);
 		return true;
 	},
 
 	subscribeHandler = (channel, handler, config) => (connection) => {
 
-		const redisInstance = getOrCreateRedisInstance(config);
+		const processMessage = () => {
 
-		connection.subscribe(channel);
-		redisInstance.subscribersByChannel.set(channel, handler);
+			connection.blpop(channel, 0, (err, data) => {
+				if (err) {
+					throw err;
+				}
+				handler(data[1]);
+				processMessage();
+			});
 
-		return true;
+		};
+
+		return new Promise((resolve, reject) => {
+
+			try {
+				processMessage();
+			} catch (error) {
+				reject(error);
+			}
+
+			resolve(true);
+		});
+
 	};
 
 module.exports = {
 
 	publish: (channel, buffer, config) => {
 		return Promise.resolve(config)
+			.then(overrideConfiguration)
 			.then(validateConfiguration)
 			.then(getPublishingConnection(config))
 			.then(publishMessage(channel, buffer));
@@ -113,6 +127,7 @@ module.exports = {
 
 	subscribe: (channel, handler, config) => {
 		return Promise.resolve(config)
+			.then(overrideConfiguration)
 			.then(validateConfiguration)
 			.then(validateHandler(handler))
 			.then(getSubscribingConnection(config))
