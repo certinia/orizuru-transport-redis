@@ -57,7 +57,7 @@ describe('index/shared/configValidator.js', () => {
 
 		});
 
-		it('should return undefined if config.url is a string', () => {
+		it('should return undefined if all ok', () => {
 
 			// given - when - then
 			expect(validate({ url: 'test' })).to.eql(undefined);
